@@ -1,6 +1,7 @@
 #include <pyliaison.h>
 #include <iostream>
 #include <math.h>
+#include <algorithm>
 
 #include <sndfile.h>
 
@@ -31,29 +32,50 @@ bool cvt2FLAC(std::string strFileNameIn, std::string strFileNameOut)
         // We want either mono or stereo (what if there were 3...)
         if (infoIn.channels & 3)
         {
-            // According to the libsndfile docs any data read in
-            // with readf_short will be properly scaled to short
-            // http://www.mega-nerd.com/libsndfile/api.html#note1
-            std::vector<short> vDataOut(infoIn.frames);
-            std::vector<short> vDataIn(infoIn.frames * infoIn.channels);
-            sf_readf_short(pFileIn, vDataIn.data(), infoIn.frames);
-            // Do stereo to mono if needed
-            if (infoIn.channels == 2)
-            {
-                for (int i=0; i<infoIn.frames; i++)
-                {
-                    vDataOut[i] = (short)(.707f * ( vDataIn[2*i] + vDataIn[2*i+1] ));
-                }
-            }
+			std::vector<int> vDataOut( infoIn.frames );
+			bool bFloat = (infoIn.format & SF_FORMAT_SUBMASK) == SF_FORMAT_FLOAT;
+			if ( bFloat )
+			{
+				std::vector<float> vDataIn( infoIn.frames * infoIn.channels );
+				sf_readf_float( pFileIn, vDataIn.data(), infoIn.frames );
+				// Do stereo to mono if needed
+				if ( infoIn.channels == 2 )
+				{
+					for ( int i = 0; i < infoIn.frames; i++ )
+					{
+						vDataOut[i] = (int) (INT_MAX * .5f * (vDataIn[2 * i] + vDataIn[2 * i + 1]));
+					}
+				}
+				else
+				{
+					for ( int i = 0; i < infoIn.frames; i++ )
+					{
+						vDataOut[i] = (int) (.9f * INT_MAX * vDataIn[i]);
+					}
+				}
+			}
+			else
+			{
+				std::vector<short> vDataIn( infoIn.frames * infoIn.channels );
+				sf_readf_short( pFileIn, vDataIn.data(), infoIn.frames );
+				// Do stereo to mono if needed
+				if ( infoIn.channels == 2 )
+				{
+					for ( int i = 0; i < infoIn.frames; i++ )
+					{
+						vDataOut[i] = (short) (.707f * (vDataIn[2 * i] + vDataIn[2 * i + 1]));
+					}
+				}
+			}
             // Open a signed short mono FLAC file
             SF_INFO infoOut = infoIn;
             infoOut.channels = 1;
-            infoOut.format = SF_FORMAT_FLAC | SF_FORMAT_PCM_16;
+            infoOut.format = SF_FORMAT_FLAC | SF_FORMAT_PCM_24;
             pFileOut = sf_open( (const char *) strFileNameOut.c_str(), SFM_WRITE, &infoOut );
             if (pFileOut)
             {
                 // Write output data, verify what we wrote
-                int nFramesW = sf_writef_short(pFileOut, vDataOut.data(), (int)vDataOut.size());
+                int nFramesW = sf_writef_int(pFileOut, vDataOut.data(), (int)vDataOut.size());
                 bSuccess = (nFramesW == (int)vDataOut.size());
                 sf_write_sync(pFileOut); // ?
             }
@@ -79,13 +101,6 @@ bool cvt2FLAC(std::string strFileNameIn, std::string strFileNameOut)
 // Pass input file and output flac file name
 int main( int argc, char ** argv )
 {
-    if (argc < 3)
-    {
-        std::cout << "Usage: input.* output.flac, input is some sound file" << std::endl;
-        return -1;
-    }
-    std::string strInFile = argv[1], strOutFile = argv[2];
-
 	// We may get an exception from the interpreter if something is amiss
 	try
 	{
@@ -101,14 +116,8 @@ int main( int argc, char ** argv )
 		// Initialize the python interpreter
 		pyl::initialize();
 
-        // Set strings in main mod
-        pyl::GetMainModule().set_attr("inFile", strInFile);
-        pyl::GetMainModule().set_attr("outFile", strOutFile);
-
-		// Import the module and call the function
-		// (this could be done in a script)
-		pyl::run_cmd( "import pylSndFile" );
-		pyl::run_cmd( "pylSndFile.cvt2FLAC(inFile, outFile)" );
+		// Create script, this will run the code I need it to
+		pyl::Object obScript( argv[1] );
 
 		// Shut down the interpreter
 		pyl::finalize();

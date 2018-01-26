@@ -2,14 +2,10 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
 PROJECT(pylCvt2FLAC)
 
-# Default build type
-if(NOT CMAKE_BUILD_TYPE)
-  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
-      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
-      FORCE)
-endif(NOT CMAKE_BUILD_TYPE)
-
 SET(CMAKE_CXX_FLAGS "-std=c++14 -Wall")
+
+file(GLOB SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
+source_group("Scripts" FILES ${SCRIPTS})
 
 # Add subdir for Pyliaison
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/pyl)
@@ -19,7 +15,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR} ${PYTHON_INCLUDE_DIR})
 LINK_DIRECTORIES(${PYTHON_LIB_DIR})
 
 # Create project executable
-ADD_EXECUTABLE(pylCvt2FLAC ${CMAKE_CURRENT_SOURCE_DIR}/pylCvt2FLAC.cpp)
+ADD_EXECUTABLE(pylCvt2FLAC ${CMAKE_CURRENT_SOURCE_DIR}/pylCvt2FLAC.cpp ${SCRIPTS})
 
 # Add libsndfile for Windows
 IF(WIN32)
