@@ -294,25 +294,38 @@ namespace pyl
 	template<class C>
 	bool convert( PyObject *obj, std::set<C>& s )
 	{
-		if ( !PySet_Check( obj ) )
-			return false;
-
-		// Use this until we succeed
-		std::set<C> setRet;
-
-		PyObject *iter = PyObject_GetIter( obj );
-		PyObject *item = PyIter_Next( iter );
-		while ( item )
+		// If this is a set, walk it
+		if ( PySet_Check( obj ) )
 		{
-			C val;
-			if ( !convert( item, val ) )
-				return false;
-			setRet.insert( val );
-			item = PyIter_Next( iter );
-		}
+			// Use this until we succeed
+			// to avoid invalidating s
+			std::set<C> setRet;
 
-		s = std::move( setRet );
-		return true;
+			PyObject *iter = PyObject_GetIter( obj );
+			PyObject *item = PyIter_Next( iter );
+			while ( item )
+			{
+				C val;
+				if ( !convert( item, val ) )
+					return false;
+				setRet.insert( val );
+				item = PyIter_Next( iter );
+			}
+
+			s = std::move( setRet );
+			return true;
+		}
+		else
+		{
+			// If this is a list, turn it into a set
+			if ( PyList_Check( obj ) )
+			{
+				std::list<C> liRet = pyl::Object( obj ).as<std::list<C> >();
+				s = std::set<C>( liRet.begin(), liRet.end() );
+				return true;
+			}
+			return false;
+		}
 	}
 
 	// Convert a PyObject to a generic container.

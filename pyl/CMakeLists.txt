@@ -1,5 +1,12 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
 
+# Default build type
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+      FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
 # Project needs c++14 for std::integer_sequence
 SET(CMAKE_CXX_FLAGS "-std=c++14 -Wall")
 

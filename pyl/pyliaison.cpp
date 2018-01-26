@@ -438,28 +438,35 @@ namespace pyl
 		}
 
 		// If we didn't get it, see if the dir path is in PyPath
-		char arrPath[] = "path";
-		pyl::Object path( PySys_GetObject( arrPath ) );
+		pyl::Object path( PySys_GetObject( "path" ) );
 		std::set<std::string> curPath;
-		pyl::convert( path.get(), curPath );
-
-		// If it isn't add it to the path and try again
-		if (curPath.count(base_path) > 0)
+		if ( pyl::convert( path.get(), curPath ) )
 		{
-			Object pwd( PyUnicode_FromString( base_path.c_str() ) );
-			PyList_Append( path.get(), pwd.get() );
-		}
+			// If it isn't add it to the path and try again
+			if ( curPath.count( base_path ) == 0 )
+			{
+				Object pwd( PyUnicode_FromString( base_path.c_str() ) );
+				PyList_Append( path.get(), pwd.get() );
+			}
 
-		pScript = PyImport_ImportModule( file_path.c_str() );
-		if ( pScript )
-		{
-			m_upPyObject.reset( pScript );
+			pScript = PyImport_ImportModule( file_path.c_str() );
+			if ( pScript )
+			{
+				Py_XINCREF( pScript );
+				m_upPyObject.reset( pScript );
+			}
+			// Adding to path didn't help... sorry
+			else
+			{
+				print_error();
+				throw runtime_error( "Error locating module" );
+			}
 		}
-		// Adding to path didn't help... sorry
+		// The path should be a list...
 		else
 		{
 			print_error();
-			throw runtime_error( "Error locating module" );
+			throw runtime_error( "Error importing path" );
 		}
 	}
 
